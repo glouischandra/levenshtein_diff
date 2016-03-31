@@ -1,0 +1,219 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Levenshtein test</title>
+    <style>
+        * {
+            font: "Segoe UI";
+        }
+        .del {
+            text-decoration:line-through;
+            color: #D00;
+        }
+        .new {
+            background: #CFC;
+        }
+    </style>
+    <script>
+        /*var s1 = ['c', 'b', 'x'],
+            s2 = ['c', 'h', 'a', 'r'];*/
+		
+        var s1 = ["Update", "(8/5/15)", "-", "A", "fix", "was", "released", "as part", "of", "a Cumulative", "Update", "for", "Windows", "10:", "August", "5,", "2015,", "for a", "problem Cortana", "was", "experiencing", "when", "installing", "language", "packs.", "If", "your", "settings", "are", "aligned", "as", "described", "above", "but", "you", "still", "can't", "use", "Cortana,", "installing the", "latest Windows", "Updates", "might", "fix", "the", "problem."],
+			s2 = ["Update", "(8/5/15):", "A", "fix", "was", "released", "as part", "of", "a Cumulative", "Update", "for", "Windows", "10", "on August", "5,", "2015,", "for a", "problem Cortana", "was", "experiencing", "when", "installing", "language", "packs.", "If", "your", "settings", "are", "correct", "but", "you", "still", "can't", "use", "Cortana,", "installing the", "latest Windows", "Updates", "might", "fix", "the", "problem."];
+			
+		/*var s1 = ["app", "that", "son", "foo", "brings", "bar"],
+			s2 = ["app", "in", "which", "brings", "your"];*/
+
+        var charsAreEqual = function (c1, c2) { return c1 == c2; }
+
+        window.onload = function() {
+            var path = editDistance(s1, s2, charsAreEqual);
+            var html = "";
+            var rend = "";
+            for (var i = 0; i < path.changes.length; i++) {
+                html = html + "<li>" + path.changes[i].toString() + "</li>";
+                switch (path.changes[i].op) {
+                    case 'Insert':
+                        rend = rend + "<span class='new'>" + path.changes[i].data + "</span> ";
+                        break;
+                    case 'Delete':
+                        rend = rend + "<span class='del'>" + path.changes[i].data + "</span> ";
+                        break;
+                    case 'Replace':
+                        rend = rend + "<span class='new'>" + path.changes[i].newData + "</span> ";
+                        rend = rend + "<span class='del'>" + path.changes[i].oldData + "</span> ";
+                        break;
+                    default:
+                        rend = rend + path.changes[i].data + " ";
+                        break;
+                }
+            }
+            var ol = document.getElementById('ed');
+            ol.innerHTML = html;
+            document.getElementById("rend").innerHTML = rend;
+			document.getElementById("original").innerHTML = s1.join(" ");
+			document.getElementById("target").innerHTML = s2.join(" ");
+        }
+
+        function editDistance(s1, s2, areEqual) {
+            function EditPath(sourcePath) {
+                var self = this;
+                var cost = 0
+                var changes = [];
+                if (sourcePath) {
+                    cost = sourcePath.cost;
+                    for (var i = 0; i < sourcePath.changes.length; i++) {
+                        changes.push(sourcePath.changes[i]);
+                    }
+                }
+                self.cost = cost;
+                self.changes = changes;
+                self.append = appendFunc;
+
+                function appendFunc(op) {
+                    self.cost = self.cost + op.cost;
+                    self.changes.push(op);
+                    return self;
+                }
+            };
+
+			return computeLevenshtein(new EditPath());
+
+            function InsertOp(data) {
+                var self = this;
+                self.op = 'Insert';
+                self.cost = 1;
+                self.data = data;
+                self.toString = function () { return "Insert    " + data; };
+            }
+
+            function DeleteOp(data) {
+                var self = this;
+                self.op = 'Delete';
+                self.cost = 1;
+                self.data = data;
+                self.toString = function () { return "Delete    " + data; };
+            }
+
+            function NoOp(data) {
+                var self = this;
+                self.op = 'Noop';
+                self.cost = 0;
+                self.data = data;
+                self.toString = function () { return "Match on  " + data; };
+            }
+
+            function ReplaceOp(oldData,newData) {
+                var self = this;
+                self.op = 'Replace';
+                self.cost = 1;
+                self.oldData = oldData;
+                self.newData = newData;
+                self.toString = function () { return "Replace " + oldData + "/" + newData; };
+            }
+			
+			function CellData(cost, operation, olderTrace){
+				var self = this;
+				self.cost = cost;
+				self.operation = operation;
+				self.trace = [];
+				for(var i = 0; i < olderTrace.length; i++){
+					self.trace.push(olderTrace[i]);
+				}
+				
+				if(operation){
+					self.trace.push(operation);
+				}
+			}
+			
+			//s1, s2, areEqual
+			//Remember: UP: insert, LEFT: Delete, UP/LEFT: substitution
+			//We use for loop for all operations to ensure backwards compatibility with < ES5
+			function computeLevenshtein(editPath){
+				if(s1.length === 0){
+					for(var i = 0; i < s2.length; i++){
+						editPath.append(new InsertOp(s2[i]));
+					}
+					return s2.length;
+				} 
+				if(s2.length === 0){
+					for(var i = 0; i < s1.length; i++){
+						editPath.append(new DeleteOp(s1[i]));
+					}
+					return s1.length;
+				} 
+				
+				var matrix = [[new CellData(0, undefined, [])]];
+				
+				for(var i = 1; i <= s2.length; i++){
+					matrix[i] = [new CellData(i, new InsertOp(s2[i - 1]), matrix[i - 1][0].trace)];
+				}
+				
+				for(var j = 1; j <= s1.length; j++){
+					matrix[0][j] = new CellData(j, new DeleteOp(s1[j - 1]),  matrix[0][j-1].trace);
+				}
+				
+				//Flash fill the matrix
+				for(var i = 1; i <= s2.length; i++){
+					for(var j = 1; j <= s1.length; j++){
+						if(areEqual(s2[i-1], s1[j-1])){
+							matrix[i][j] = new CellData(matrix[i-1][j-1].cost, new NoOp(s1[j-1]), matrix[i-1][j-1].trace);
+						} else {
+							var replaceCost = matrix[i-1][j-1].cost + 1;
+							var insertionCost = matrix[i-1][j].cost + 1;
+							var deleteCost = matrix[i][j-1].cost + 1;
+							
+							if (replaceCost <= insertionCost && replaceCost <= deleteCost) {
+								matrix[i][j] = new CellData(replaceCost, new ReplaceOp(s1[j-1], s2[i-1]), matrix[i-1][j-1].trace);
+							}
+
+							if (insertionCost <= deleteCost && insertionCost <= replaceCost) {
+								matrix[i][j] = new CellData(insertionCost, new InsertOp(s2[i-1]), matrix[i-1][j].trace);
+							}
+
+							if (deleteCost <= insertionCost && deleteCost <= replaceCost) {
+								matrix[i][j] = new CellData(deleteCost, new DeleteOp(s1[j-1]), matrix[i][j-1].trace);
+							}
+						}
+					}
+				}
+				
+				//Print the matrix if needed
+				/*for(var i = 0; i < matrix.length; i++){
+					var output = "";
+					for(var j = 0; j < matrix[i].length; j++){
+						if(matrix[i][j].operation){
+							output = output + " | " + matrix[i][j].operation.toString() + " cost:" + matrix[i][j].cost;
+						} else {
+							output = output + "---------------------";
+						}
+					}
+					if(console && console.log){
+						console.log(output);
+					}
+				}*/
+				
+				//add all the trace at the end to get the editPath
+				for(var i = 0; i < matrix[s2.length][s1.length].trace.length; i++){
+					editPath.append(matrix[s2.length][s1.length].trace[i]);
+				}
+				
+				return editPath;
+			}
+        }
+    </script>
+</head>
+<body>
+    <h2>Min steps calculation</h2>
+  <ol id="ed">
+
+  </ol>
+    <h3>here's what it looks like</h3>
+	<div id="original"></div>
+	<div id="target"></div>
+	<br />
+    Combined: <div id="rend"></div>
+</body>
+</html>
