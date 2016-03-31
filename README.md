@@ -1,7 +1,6 @@
 ## What is this?
 
-Princeton Algorithm part II Class is a very good data structure and algorithm class on coursera. These are some of the excercise solution that I wrote. I also did the first part but couldn't find my files in my drive. When I find them, I'll upload it.
+The needs to diff two string and find minimum change needed is commonly known as Levenshtein distance. This is the JS implementation to diff two strings.
+There's a more 
 
-## Note
 
-I use drjava to compile and run these codes, for more information please see https://www.coursera.org/course/algs4partII
